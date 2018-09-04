@@ -2,6 +2,7 @@ var Book = require('../models/book');
 var Author = require('../models/author');
 var Genre = require('../models/genre');
 var BookInstance = require('../models/bookinstance');
+var mongoose = require('mongoose');
 
 var async = require('async');
 
@@ -42,8 +43,41 @@ exports.book_list = function(req, res, next) {
 };
 
 // Display detail page for a specific book.
-exports.book_detail = function(req, res) {
-    res.send('NOT IMPLEMENTED: Book detail: ' + req.params.id);
+exports.book_detail = function(req, res, next) {
+
+    var id;
+    try {
+        id = mongoose.Types.ObjectId(req.params.id);
+    } catch (e) {
+        var err = new Error('Invalid book ID');
+        err.status = 404;
+        return next(err);
+    }
+
+    async.parallel({
+        book: function(callback) {
+
+            Book.findById(id)
+              .populate('author')
+              .populate('genre')
+              .exec(callback);
+        },
+        book_instance: function(callback) {
+
+          BookInstance.find({ 'book': id })
+          .exec(callback);
+        },
+    }, function(err, results) {
+        if (err) { return next(err); }
+        if (results.book==null) { // No results.
+            var err = new Error('Book not found');
+            err.status = 404;
+            return next(err);
+        }
+        // Successful, so render.
+        res.render('book_detail', { title: 'Title', book:  results.book, book_instances: results.book_instance } );
+    });
+
 };
 
 // Display book create form on GET.

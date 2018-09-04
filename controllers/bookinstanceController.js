@@ -1,4 +1,5 @@
 var BookInstance = require('../models/bookinstance');
+var mongoose = require('mongoose');
 
 // Display list of all BookInstances.
 exports.bookinstance_list = function(req, res, next) {
@@ -14,9 +15,33 @@ exports.bookinstance_list = function(req, res, next) {
 };
 
 // Display detail page for a specific BookInstance.
-exports.bookinstance_detail = function(req, res) {
-    res.send('NOT IMPLEMENTED: BookInstance detail: ' + req.params.id);
+exports.bookinstance_detail = function(req, res, next) {
+
+    var id;
+    try {
+        id = mongoose.Types.ObjectId(req.params.id);
+    } catch (e) {
+        var err = new Error('Invalid book ID');
+        err.status = 404;
+        return next(err);
+    }
+
+    BookInstance.findById(id)
+    .populate('book')
+    .exec(function (err, bookinstance) {
+      if (err) { return next(err); }
+      if (bookinstance==null) { // No results.
+          var err = new Error('Book copy not found');
+          err.status = 404;
+          return next(err);
+        }
+      // Successful, so render.
+      res.render('bookinstance_detail', { title: 'Book:', bookinstance:  bookinstance});
+    })
+
 };
+
+
 
 // Display BookInstance create form on GET.
 exports.bookinstance_create_get = function(req, res) {
